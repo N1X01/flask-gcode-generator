@@ -12,6 +12,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(GCODE_FOLDER, exist_ok=True)
 
 def clean_name(name):
+    """Extracts only the first name and removes unwanted characters."""
     name = str(name).strip()
 
     # Remove emails and numbers before processing
@@ -52,18 +53,19 @@ def index():
 
             # Extract and clean first names
             first_names = df["First Name"].dropna().apply(clean_name)
-zip_filename = os.path.join(GCODE_FOLDER, "generated_gcode.zip")
 
-# Delete existing ZIP file if it already exists
-if os.path.exists(zip_filename):
-    os.remove(zip_filename)
-
+            # Create a consistent ZIP filename (no numbers)
+            zip_filename = "generated_gcode.zip"
             zip_path = os.path.join(GCODE_FOLDER, zip_filename)
 
-            # Create G-code files
+            # Delete old ZIP file if it exists
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+
+            # Create new ZIP file
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 for name in first_names:
-                    if name:  # Ensure the name is valid
+                    if name != "Skipped":  # Skip invalid names
                         gcode_content = generate_gcode(name)
                         gcode_filename = f"{name.strip()}.gcode"
                         gcode_path = os.path.join(GCODE_FOLDER, gcode_filename)
