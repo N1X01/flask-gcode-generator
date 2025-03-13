@@ -18,8 +18,9 @@ def clean_name(name):
     name = re.sub(r'\S+@\S+', '', name)  # Remove anything that looks like an email
     name = re.sub(r'[^A-Za-z ]', '', name)  # Keep only letters
 
-    # Take only the first word
-    clean_name = name.split()[0] if name else "Unknown"
+    # Take only the first word (if available)
+    words = name.split()
+    clean_name = words[0] if words else "Skipped"
 
     return clean_name
 
@@ -51,8 +52,12 @@ def index():
 
             # Extract and clean first names
             first_names = df["First Name"].dropna().apply(clean_name)
+zip_filename = os.path.join(GCODE_FOLDER, "generated_gcode.zip")
 
-            zip_filename = "generated_gcode.zip"
+# Delete existing ZIP file if it already exists
+if os.path.exists(zip_filename):
+    os.remove(zip_filename)
+
             zip_path = os.path.join(GCODE_FOLDER, zip_filename)
 
             # Create G-code files
