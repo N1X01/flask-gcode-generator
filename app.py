@@ -12,9 +12,15 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(GCODE_FOLDER, exist_ok=True)
 
 def clean_name(name):
-    """Extracts only the first name and removes unwanted characters."""
     name = str(name).strip()
-    clean_name = re.sub(r'[^A-Za-z ]', '', name).split()[0]  # Keep only letters, take first word
+
+    # Remove emails and numbers before processing
+    name = re.sub(r'\S+@\S+', '', name)  # Remove anything that looks like an email
+    name = re.sub(r'[^A-Za-z ]', '', name)  # Keep only letters
+
+    # Take only the first word
+    clean_name = name.split()[0] if name else "Unknown"
+
     return clean_name
 
 def generate_gcode(name):
