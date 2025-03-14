@@ -19,9 +19,9 @@ def clean_name(name):
     name = re.sub(r'\S+@\S+', '', name)  # Remove anything that looks like an email
     name = re.sub(r'[^A-Za-z ]', '', name)  # Keep only letters
 
-    # Take only the first word (if available)
+    # Take only the first word (if available) & prevent single-letter names
     words = name.split()
-    clean_name = words[0] if words else "Skipped"
+    clean_name = words[0] if len(words) > 0 and len(words[0]) > 1 else "Skipped"
 
     return clean_name
 
