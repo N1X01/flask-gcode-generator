@@ -12,8 +12,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(GCODE_FOLDER, exist_ok=True)
 
 def clean_name(name):
-    """Extracts only the first name and removes unwanted characters."""
-    name = str(name).strip()
+    """Use exactly what is in the 'First Name' column, with no filtering."""
+    return str(name).strip()
 
     # Remove emails and numbers before processing
     name = re.sub(r'\S+@\S+', '', name)  # Remove anything that looks like an email
