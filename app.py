@@ -3,39 +3,54 @@ import pandas as pd
 import os
 import zipfile
 import re  # For cleaning names
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPM
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 GCODE_FOLDER = "gcode_files"
+SVG_FOLDER = "svg_files"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(GCODE_FOLDER, exist_ok=True)
+os.makedirs(SVG_FOLDER, exist_ok=True)
 
 def clean_name(name):
-    """Use exactly what is in the 'First Name' column, with no filtering."""
+    """Keep the exact first name without filtering."""
     return str(name).strip()
 
-    # Remove emails and numbers before processing
-    name = re.sub(r'\S+@\S+', '', name)  # Remove anything that looks like an email
-    name = re.sub(r'[^A-Za-z ]', '', name)  # Keep only letters
+def text_to_svg(name, filename):
+    """Creates an SVG file with the name written in vector format."""
+    svg_content = f"""
+    <svg width="200" height="100" xmlns="http://www.w3.org/2000/svg">
+        <text x="10" y="50" font-family="Arial" font-size="24" fill="black">{name}</text>
+    </svg>
+    """
+    with open(filename, "w") as file:
+        file.write(svg_content)
+    return filename
 
-    # Take only the first word (if available) & prevent single-letter names
-    words = name.split()
-    clean_name = words[0] if len(words) > 0 and len(words[0]) > 1 else "Skipped"
+def svg_to_gcode(svg_file):
+    """Converts SVG text paths into G-code movements."""
+    drawing = svg2rlg(svg_file)
+    gcode_lines = [
+        "G21 ; Set units to mm",
+        "G90 ; Absolute positioning"
+    ]
 
-    return clean_name
+    start_x, start_y = 10, 50  # Set base position
 
-def generate_gcode(name):
-    """Generates G-code for a given first name."""
-    return f"""(
-G21 ; Set units to mm
-G90 ; Absolute positioning
-M3 S100 ; Pen down
-G0 X10 Y10 ; Move to start position     
-G1 X20 Y10 ; Write name: {name}
-M5 ; Pen up
-G0 X0 Y0 ; Return to home
-)"""        
+    for shape in drawing.contents:
+        if hasattr(shape, 'points'):
+            for point in shape.points:
+                x, y = point
+                gcode_lines.append(f"G0 X{x + start_x} Y{y + start_y}")  # Move to start
+                gcode_lines.append("G1 Z2")  # Pen down
+                gcode_lines.append(f"G1 X{x + start_x} Y{y + start_y}")  # Draw segment
+                gcode_lines.append("G1 Z0")  # Pen up
+
+    gcode_lines.append("G0 X0 Y0")  # Return home
+    return "\n".join(gcode_lines)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -54,7 +69,7 @@ def index():
             # Extract and clean first names
             first_names = df["First Name"].dropna().apply(clean_name)
 
-            # Create a consistent ZIP filename (no numbers)
+            # Create ZIP filename
             zip_filename = "generated_gcode.zip"
             zip_path = os.path.join(GCODE_FOLDER, zip_filename)
 
@@ -65,8 +80,10 @@ def index():
             # Create new ZIP file
             with zipfile.ZipFile(zip_path, 'w') as zipf:
                 for name in first_names:
-                    if name != "Skipped":  # Skip invalid names
-                        gcode_content = generate_gcode(name)
+                    if name != "Skipped":
+                        svg_file = text_to_svg(name, os.path.join(SVG_FOLDER, f"{name}.svg"))
+                        gcode_content = svg_to_gcode(svg_file)
+
                         gcode_filename = f"{name.strip()}.gcode"
                         gcode_path = os.path.join(GCODE_FOLDER, gcode_filename)
 
@@ -81,4 +98,3 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
-
